@@ -1,4 +1,3 @@
-const { type } = require("@testing-library/user-event/dist/type");
 let mongoose = require("mongoose");
 
 const CounterSchema = new mongoose.Schema({
