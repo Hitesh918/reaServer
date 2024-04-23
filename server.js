@@ -626,44 +626,27 @@ app.post("/removeTeacherFromCourse", async (req, res) => {
     console.log(req.query)
     let adminId = (req.query.adminId)
     let courseId = parseInt(req.query.courseId)
-    // try {
-    //     let resp = await Admin.findOneAndUpdate(
-    //         { 'adminId': adminId, 'courses.courseId': courseId, 'courses.studentList': { $exists: true, $eq: [] } },
-    //         { $pull: { 'courses': { 'courseId': courseId } } }
-    //     );
-    //     console.log(resp)
-    //     if (resp) {
-    //         await Course.updateOne(
-    //             { courseId: courseId },
-    //             { $pull: { teachers: adminId } }
-    //         );
-    //         res.send("success");
-    //     }
-    //     else {
-    //         res.send("Admin has students in the course")
-    //     }
-    //     // console.log("Teacher removed");
-    //     // res.send("success");
-    // }
     try {
         let admin = await Admin.findOneAndUpdate(
-            { 'adminId': adminId, 'courses.courseId': courseId },
-            { $pull: { 'courses': { 'courseId': courseId } } }
+            { 'adminId': adminId },
+            { $pull: { 'courses': { courseId, studentList: { $size: 0 } } } }
         );
         console.log(admin)
         if (admin) {
-            let course = await Course.findOne({ courseId: courseId });
-            if (course && course.studentList.length === 0) {
+            // Check if the admin still has students in any of their courses
+            const hasStudents = admin.courses.some(course => course.studentList.length > 0);
+    
+            if (hasStudents) {
+                res.send("Admin has students, cannot remove from course.");
+            } else {
                 await Course.updateOne(
                     { courseId: courseId },
                     { $pull: { teachers: adminId } }
                 );
                 res.send("success");
-            } else {
-                res.send("Admin has students in the course");
             }
         } else {
-            res.send("Admin not found or course not found for the admin");
+            res.send("Admin not found or course not found for the admin.");
         }
     }
     catch (error) {
