@@ -1,14 +1,14 @@
 let express = require('express');
 let mongoose = require('mongoose')
 const cors = require("cors");
-const { SuperAdmin, Course, Admin, Student , Counter} = require('./schema');
+const { SuperAdmin, Course, Admin, Student, Counter , Event , Page , Submission} = require('./schema');
 let cloudinary = require('cloudinary').v2;
 
 const fs = require('fs').promises;
 const path = require('path');
 const process = require('process');
-const {authenticate} = require('@google-cloud/local-auth');
-const {SpacesServiceClient} = require('@google-apps/meet').v2;
+const { authenticate } = require('@google-cloud/local-auth');
+const { SpacesServiceClient } = require('@google-apps/meet').v2;
 const { auth } = require('google-auth-library');
 
 
@@ -49,65 +49,65 @@ const CREDENTIALS_PATH = path.join(process.cwd(), 'credentials.json');
  */
 async function loadSavedCredentialsIfExist() {
     try {
-      const content = await fs.readFile(TOKEN_PATH);
-      const credentials = JSON.parse(content);
-      return auth.fromJSON(credentials);
+        const content = await fs.readFile(TOKEN_PATH);
+        const credentials = JSON.parse(content);
+        return auth.fromJSON(credentials);
     } catch (err) {
-      console.log(err);
-      return null;
+        console.log(err);
+        return null;
     }
-  }
-  
-  /**
-   * Serializes credentials to a file compatible with GoogleAuth.fromJSON.
-   *
-   * @param {OAuth2Client} client
-   * @return {Promise<void>}
-   */
-  async function saveCredentials(client) {
+}
+
+/**
+ * Serializes credentials to a file compatible with GoogleAuth.fromJSON.
+ *
+ * @param {OAuth2Client} client
+ * @return {Promise<void>}
+ */
+async function saveCredentials(client) {
     const content = await fs.readFile(CREDENTIALS_PATH);
     const keys = JSON.parse(content);
     const key = keys.installed || keys.web;
     const payload = JSON.stringify({
-      type: 'authorized_user',
-      client_id: key.client_id,
-      client_secret: key.client_secret,
-      refresh_token: client.credentials.refresh_token,
+        type: 'authorized_user',
+        client_id: key.client_id,
+        client_secret: key.client_secret,
+        refresh_token: client.credentials.refresh_token,
     });
     await fs.writeFile(TOKEN_PATH, payload);
-  }
-  
-  /**
-   * Load or request or authorization to call APIs.
-   *
-   */
-  async function authorize() {
+}
+
+/**
+ * Load or request or authorization to call APIs.
+ *
+ */
+async function authorize() {
     let client = await loadSavedCredentialsIfExist();
     if (client) {
-      return client;
+        return client;
     }
     client = await authenticate({
-      scopes: SCOPES,
-      keyfilePath: CREDENTIALS_PATH,
+        scopes: SCOPES,
+        keyfilePath: CREDENTIALS_PATH,
     });
     if (client.credentials) {
-      await saveCredentials(client);
+        await saveCredentials(client);
     }
     return client;
-  }
-  
-  /**
-   * Creates a new meeting space.
-   * @param {OAuth2Client} authClient An authorized OAuth2 client.
-   */
-  async function createSpace(authClient) {
+}
+
+/**
+ * Creates a new meeting space.
+ * @param {OAuth2Client} authClient An authorized OAuth2 client.
+ */
+async function createSpace(authClient) {
     const meetClient = new SpacesServiceClient({
-      authClient: authClient
+        authClient: authClient
     });
     // Construct request
     const request = {
     };
-  
+
     // Run request
     const response = await meetClient.createSpace(request);
     return response[0].meetingUri;
@@ -117,14 +117,14 @@ async function loadSavedCredentialsIfExist() {
 
 app.get('/api/createMeeting', async (req, res) => {
     try {
-      const authClient = await authorize();
-      const meetingLink = await createSpace(authClient);
-      res.json({ meetingLink });
+        const authClient = await authorize();
+        const meetingLink = await createSpace(authClient);
+        res.json({ meetingLink });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ error: 'Failed to create meeting space' });
+        console.error(error);
+        res.status(500).json({ error: 'Failed to create meeting space' });
     }
-  });
+});
 
 app.get("/courseList", async (req, res) => {
     try {
@@ -350,7 +350,8 @@ app.get("/studentDetails", async (req, res) => {
                         courseId: courseDetail.courseId,
                         courseName: courseDetail.courseName,
                         numberOfLevels: courseDetail.levels.length
-                    }
+                    },
+                    // taughtBy:course.taughtBy
                 });
             }
         }
@@ -360,7 +361,7 @@ app.get("/studentDetails", async (req, res) => {
             studentId: student.studentId,
             mobile: student.mobile,
             courses: coursesDetails,
-            dp:student.dp
+            dp: student.dp
         };
         res.send(result);
         console.log(result);
@@ -391,6 +392,293 @@ app.get("/superAdminDetails", async (req, res) => {
         console.log(error)
     }
 })
+
+app.get("/allTeachers" , async (req,res) => {
+    try {
+        const teachers = await Admin.find({}).select(`name adminId mobile email`)
+        res.send(teachers);
+    }
+    catch (error) {
+        console.log(error)
+    }
+});
+
+app.get("/getQuestion" , async (req , res) => {
+    console.log(req.query)
+    try {
+        let question = await Page.findOne({courseId : parseInt(req.query.courseId) , level : parseInt(req.query.level) , pageNumber : parseInt(req.query.pageNumber)})
+        res.send(question.content)
+    }
+    catch (error) {
+        console.log(error)
+    }
+})
+
+app.get("/getTemplateType" , async (req , res) => {
+    console.log(req.query)
+    try {
+        let question = await Page.findOne({courseId : parseInt(req.query.courseId) , level : parseInt(req.query.level) , pageNumber : parseInt(req.query.pageNumber)})
+        if(question){
+            res.send({templateType : question.templateType})
+        }
+        else{
+            res.send("resource not found")
+        }
+    }
+    catch (error) {
+        console.log(error)
+    }
+})
+
+app.get("/getStudentLevel" , async (req , res)=>{
+    console.log(req.query)
+        try{
+            const student = await Student.findOne({ studentId : parseInt(req.query.studentId)});
+            
+            if (!student) {
+                throw new Error('Student not found');
+            }
+    
+            const course = student.courses.find(course => course.courseId === parseInt(req.query.courseId));
+    
+            if (!course) {
+                res.send("not found")
+            }
+            else{
+                res.send({
+                    level:course.level
+                })
+            }
+        }
+        catch(error){
+            console.log(error)
+        }
+})
+
+// app.get("/getTemplateTypeWithoutLevel" , async (req,res)=>{
+//     console.log(req.query)
+//     try{
+//         const student = await Student.findOne({ studentId : parseInt(req.query.studentId)});
+        
+//         if (!student) {
+//             throw new Error('Student not found');
+//         }
+
+//         const course = student.courses.find(course => course.courseId === parseInt(req.query.courseId));
+
+        
+
+//         if (!course) {
+//             throw new Error('Course not found for this student');
+//         }
+
+//         let question = await Page.findOne({courseId : parseInt(req.query.courseId) , level : course.level , pageNumber : parseInt(req.query.pageNumber)})
+//         if(question){
+//             res.send({templateType : question.templateType})
+//         }
+//         else{
+//             res.send("resource not found")
+//         }
+//     }
+//     catch(error){
+//         console.log(error)
+//     }
+// })
+
+app.get("/getProgressStudent" , async (req , res) => {
+    console.log(req.query)
+    try {
+        let progress = await Submission.findOne({studentId : parseInt(req.query.studentId) , courseId : parseInt(req.query.courseId) , pageNumber : parseInt(req.query.pageNumber) , level : parseInt(req.query.level) })
+        if(progress){
+            res.send({
+                state: progress.state,
+                submission: progress.submission
+            })
+        }
+        else{
+            res.send("not found")
+        }
+    }
+    catch (error) {
+        console.log(error)
+    }
+})
+
+app.get("/getSubmissions" , async (req , res) => {
+    console.log(req.query)
+    try {
+        let submissions = await Submission.find({courseId : parseInt(req.query.courseId) , studentId : parseInt(req.query.studentId) , state : 1})
+        let pageNumbers = submissions.map(submission => submission.pageNumber);
+        res.send(pageNumbers)
+    }
+    catch (error) {
+        console.log(error)
+    }
+})
+
+app.post("/teacherSubmit" , async (req , res) => {
+    console.log(req.query)
+    try{
+        if(!req.query.wrongs ){
+            await Submission.updateOne({studentId : parseInt(req.query.studentId) , courseId : parseInt(req.query.courseId) , pageNumber : parseInt(req.query.pageNumber) , level : parseInt(req.query.level) } , { $set : {state : 2 , "submission.wrong" : []}})
+
+            res.send("done")
+        }
+        else{
+            await Submission.updateOne({studentId : parseInt(req.query.studentId) , courseId : parseInt(req.query.courseId) , pageNumber : parseInt(req.query.pageNumber) , level : parseInt(req.query.level) } , { $set : {state : 0 , "submission.wrong" : req.query.wrongs}})
+            res.send("done")
+        }
+    }
+    catch(error){
+        console.log(error)
+    }
+})
+
+app.post("/studentSubmit" , async (req , res) => {
+    console.log(req.query)
+    try {
+        let submission = await Submission.findOne({studentId : parseInt(req.query.studentId) , courseId : parseInt(req.query.courseId) , pageNumber : parseInt(req.query.pageNumber) , level : parseInt(req.query.level) })
+        if(submission){
+            await Submission.updateOne({
+                studentId: parseInt(req.query.studentId),
+                courseId: parseInt(req.query.courseId),
+                pageNumber: parseInt(req.query.pageNumber),
+                level: parseInt(req.query.level)
+            }, {
+                $set: {
+                    state: 1,
+                }
+            });
+
+                    // Overwrite values in tables from buffer
+        if (submission.submission.buffer.Btable1.length > 0) {
+            submission.submission.buffer.Btable1.forEach((value, index) => {
+                if (value !== null) {
+                    submission.submission.table1[index] = value;
+                }
+            });
+            submission.submission.buffer.Btable1 = [];
+        }
+        if (submission.submission.buffer.Btable2.length > 0) {
+            submission.submission.buffer.Btable2.forEach((value, index) => {
+                if (value !== null) {
+                    submission.submission.table2[index] = value;
+                }
+            });
+            submission.submission.buffer.Btable2 = [];
+        }
+        if (submission.submission.buffer.Btable3.length > 0) {
+            submission.submission.buffer.Btable3.forEach((value, index) => {
+                if (value !== null) {
+                    submission.submission.table3[index] = value;
+                }
+            });
+            submission.submission.buffer.Btable3 = [];
+        }
+
+        // Save the updated submission back to the database
+        await submission.save();
+
+
+            res.send("done")
+        }
+        else{
+            res.send("not found")
+        }
+    }
+    catch (error) {
+        console.log(error)
+    }
+})
+
+
+app.post("/updateProgress" , async (req , res) => {
+    console.log(req.query)
+    try {
+        let sub = await Submission.findOne({studentId : parseInt(req.query.studentId) , courseId : parseInt(req.query.courseId) , pageNumber : parseInt(req.query.pageNumber) , level : parseInt(req.query.level) })
+        if(sub){
+            if(sub.submission.wrong.length == 0){
+                await Submission.updateOne({
+                    studentId: parseInt(req.query.studentId),
+                    courseId: parseInt(req.query.courseId),
+                    pageNumber: parseInt(req.query.pageNumber),
+                    level: parseInt(req.query.level)
+                }, {
+                    $set: {
+                        "submission.table1": req.query.submission.table1,
+                        "submission.table2": req.query.submission.table2,
+                        "submission.table3": req.query.submission.table3,
+                        "submission.wrong": sub.submission.wrong
+                    }
+                });
+                res.send("done")
+            }
+            else{
+                await Submission.updateOne({
+                    studentId: parseInt(req.query.studentId),
+                    courseId: parseInt(req.query.courseId),
+                    pageNumber: parseInt(req.query.pageNumber),
+                    level: parseInt(req.query.level)
+                }, {
+                    $set: {
+                        "submission.buffer.Btable1": req.query.submission.table1,
+                        "submission.buffer.Btable2": req.query.submission.table2,
+                        "submission.buffer.Btable3": req.query.submission.table3,
+                    }
+                });
+                res.send("done")
+            }
+
+        }
+        else{
+            let obj = new Submission({
+                studentId : parseInt(req.query.studentId),
+                courseId : parseInt(req.query.courseId),
+                level : parseInt(req.query.level),
+                pageNumber : parseInt(req.query.pageNumber),
+                state :0,
+                submission : {
+                    table1 : req.query.submission.table1,
+                    table2 : req.query.submission.table2,
+                    table3 : req.query.submission.table3,
+                    wrong : []
+                }
+            })
+            await obj.save()
+            res.send("done")
+        }
+    }
+    catch (error) {
+        console.log(error)
+    }
+})
+
+app.post("/newQuestion" , async (req , res)=>{
+    console.log(req.query)
+    try {
+
+        let page = await Page.findOne({courseId : parseInt(req.query.courseId) , level : parseInt(req.query.level) , pageNumber : parseInt(req.query.pageNumber)})
+        if(page){
+            res.send("Question already exists")
+        }
+        else{
+            let obj = new Page({
+                courseId : parseInt(req.query.courseId),
+                level : parseInt(req.query.level),
+                templateType : parseInt(req.query.templateType),
+                pageNumber : parseInt(req.query.pageNumber),
+                content : req.query.content
+            })
+            await obj.save()
+            res.send("Question added")
+        }
+    }
+    catch (error) {
+        console.log(error)
+        res.send("Failed to add question")
+    }
+})
+
 
 //upload resources
 app.post('/upload', async (req, res) => {
@@ -444,9 +732,9 @@ app.post("/newStudent", async (req, res) => {
         try {
             const counter = await Counter.findByIdAndUpdate({ _id: 'studentId' }, { $inc: { seq: -1 } }, { new: true, upsert: true });
             this.studentId = counter.seq;
-          } catch (error) {
+        } catch (error) {
             console.log(error)
-          }
+        }
         res.send("Failed to add student")
     }
 
@@ -626,6 +914,25 @@ app.post("/removeTeacherFromCourse", async (req, res) => {
     console.log(req.query)
     let adminId = (req.query.adminId)
     let courseId = parseInt(req.query.courseId)
+    // try {
+    //     let resp = await Admin.findOneAndUpdate(
+    //         { 'adminId': adminId, 'courses.courseId': courseId, 'courses.studentList': { $exists: true, $eq: [] } },
+    //         { $pull: { 'courses': { 'courseId': courseId } } }
+    //     );
+    //     console.log(resp)
+    //     if (resp) {
+    //         await Course.updateOne(
+    //             { courseId: courseId },
+    //             { $pull: { teachers: adminId } }
+    //         );
+    //         res.send("success");
+    //     }
+    //     else {
+    //         res.send("Admin has students in the course")
+    //     }
+    //     // console.log("Teacher removed");
+    //     // res.send("success");
+    // }
     try {
         let admin = await Admin.findOneAndUpdate(
             { 'adminId': adminId },
