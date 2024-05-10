@@ -171,8 +171,77 @@ studentSchema.pre('save', async function(next) {
 
 const Student = mongoose.model("student", studentSchema);
 
-module.exports = { SuperAdmin, Course, Admin, Student , Counter};
+const eventSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        required: true,
+    },
+    about: String , 
+    date: Date,
+    venue : String,
+    image : String,
+});
 
+const Event = mongoose.model("event", eventSchema);
 
-//assignments , same throughout the course???
-//quizes , due dates , logs
+const pageSchema = new mongoose.Schema({
+    pageNumber: {
+        type: Number,
+        required: true,
+    },
+    courseId: {
+        type: Number,
+        required: true,
+    },
+    level: {
+        type: Number,
+        required: true,
+    },
+    templateType :Number,
+    content : {
+        table1 : [[Number]],
+        table2 : [[Number]],
+        table3 : [[Number]],
+        table4 : [[Number]],
+    }
+});
+const Page = mongoose.model("page", pageSchema);
+
+const submissionSchema = new mongoose.Schema({
+    studentId: {
+        type: Number,
+        required: true,
+    },
+    courseId: {
+        type: Number,
+        required: true,
+    },
+    level: {
+        type: Number,
+        required: true,
+    },
+    pageNumber: {
+        type: Number,
+        required: true,
+    },
+    state:Number , //initial - 0 , completed - 2 , resubmitted - 1
+    submission : {
+        table1 : [Number],
+        table2 : [Number],
+        table3 : [Number],
+        wrong : [{
+            table : String,
+            qn : Number,
+        }],
+        buffer:{
+            Btable1 : [Number],
+            Btable2 : [Number],
+            Btable3 : [Number],
+        }
+    }
+});
+
+const Submission = mongoose.model("submission", submissionSchema);
+
+module.exports = { SuperAdmin, Course, Admin, Student , Counter , Event , Page , Submission};
+
