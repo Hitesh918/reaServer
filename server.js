@@ -1,22 +1,14 @@
 let express = require('express');
 let mongoose = require('mongoose')
 const cors = require("cors");
-const { SuperAdmin, Course, Admin, Student, Counter , Event , Page , Submission} = require('./schema');
+const { SuperAdmin, Course, Admin, Student, Counter, Event, Page, Submission } = require('./schema');
+const e = require('express');
 let cloudinary = require('cloudinary').v2;
-
-const fs = require('fs').promises;
-const path = require('path');
-const process = require('process');
-const { authenticate } = require('@google-cloud/local-auth');
-const { SpacesServiceClient } = require('@google-apps/meet').v2;
-const { auth } = require('google-auth-library');
-
 
 let app = express();
 app.use(cors())
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ limit: "25mb" }));
-
 
 mongoose.connect("mongodb+srv://reaabacus1:erGQnoMe3Y5mV1cd@rea.k8odx3q.mongodb.net/REA")
     .catch((err) => {
@@ -36,95 +28,6 @@ const options = {
     unique_filename: false,
     overwrite: true,
 };
-
-const SCOPES = ['https://www.googleapis.com/auth/meetings.space.created'];
-const TOKEN_PATH = path.join(process.cwd(), 'token.json');
-const CREDENTIALS_PATH = path.join(process.cwd(), 'credentials.json');
-
-
-/**
- * Reads previously authorized credentials from the save file.
- *
- * @return {Promise<OAuth2Client|null>}
- */
-async function loadSavedCredentialsIfExist() {
-    try {
-        const content = await fs.readFile(TOKEN_PATH);
-        const credentials = JSON.parse(content);
-        return auth.fromJSON(credentials);
-    } catch (err) {
-        console.log(err);
-        return null;
-    }
-}
-
-/**
- * Serializes credentials to a file compatible with GoogleAuth.fromJSON.
- *
- * @param {OAuth2Client} client
- * @return {Promise<void>}
- */
-async function saveCredentials(client) {
-    const content = await fs.readFile(CREDENTIALS_PATH);
-    const keys = JSON.parse(content);
-    const key = keys.installed || keys.web;
-    const payload = JSON.stringify({
-        type: 'authorized_user',
-        client_id: key.client_id,
-        client_secret: key.client_secret,
-        refresh_token: client.credentials.refresh_token,
-    });
-    await fs.writeFile(TOKEN_PATH, payload);
-}
-
-/**
- * Load or request or authorization to call APIs.
- *
- */
-async function authorize() {
-    let client = await loadSavedCredentialsIfExist();
-    if (client) {
-        return client;
-    }
-    client = await authenticate({
-        scopes: SCOPES,
-        keyfilePath: CREDENTIALS_PATH,
-    });
-    if (client.credentials) {
-        await saveCredentials(client);
-    }
-    return client;
-}
-
-/**
- * Creates a new meeting space.
- * @param {OAuth2Client} authClient An authorized OAuth2 client.
- */
-async function createSpace(authClient) {
-    const meetClient = new SpacesServiceClient({
-        authClient: authClient
-    });
-    // Construct request
-    const request = {
-    };
-
-    // Run request
-    const response = await meetClient.createSpace(request);
-    return response[0].meetingUri;
-}
-
-
-
-app.get('/api/createMeeting', async (req, res) => {
-    try {
-        const authClient = await authorize();
-        const meetingLink = await createSpace(authClient);
-        res.json({ meetingLink });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Failed to create meeting space' });
-    }
-});
 
 app.get("/courseList", async (req, res) => {
     try {
@@ -156,8 +59,7 @@ app.get("/courseList", async (req, res) => {
                 }
             }
         ])
-        console.log(courses);
-
+        // console.log(courses);
         res.send(courses);
     } catch (error) {
         console.error('Error finding courses:', error);
@@ -165,7 +67,7 @@ app.get("/courseList", async (req, res) => {
 })
 
 app.get("/getCourseDetails", async (req, res) => {
-    console.log(req.query)
+    // console.log(req.query)
     try {
         const stud = await Student.findOne({ studentId: req.query.studentId });
         if (!stud) {
@@ -173,7 +75,7 @@ app.get("/getCourseDetails", async (req, res) => {
             return;
         }
         let teacherName = stud.courses.find((course) => { if (course.courseId == req.query.courseId) { return course.taughtBy } })
-        console.log(teacherName)
+        // console.log(teacherName)
         const teacher = await Admin.findOne({ adminId: teacherName.taughtBy });
         res.send({
             teacherName: teacher.name,
@@ -186,10 +88,8 @@ app.get("/getCourseDetails", async (req, res) => {
     }
 });
 
-//get resources
-
 app.get("/getResources", async (req, res) => {
-    console.log(req.query)
+    // console.log(req.query)
     let courseId = parseInt(req.query.courseId);
     let level = parseInt(req.query.level);
     try {
@@ -200,14 +100,14 @@ app.get("/getResources", async (req, res) => {
         }
         const resources = course.levels[level - 1].resources;
         res.send(resources);
-        console.log(resources);
+        // console.log(resources);
     } catch (error) {
         console.error('Error finding course:', error);
     }
 })
 
 app.get("/getClassLink", async (req, res) => {
-    console.log(req.query)
+    // console.log(req.query)
     let courseId = parseInt(req.query.courseId);
     let studentId = parseInt(req.query.studentId);
     try {
@@ -221,7 +121,7 @@ app.get("/getClassLink", async (req, res) => {
             console.log('Course not found');
             return;
         }
-        console.log(course)
+        // console.log(course)
         res.send(course);
     }
     catch (error) {
@@ -229,9 +129,8 @@ app.get("/getClassLink", async (req, res) => {
     }
 })
 
-//courses thought by teachers
 app.get("/adminDetails", async (req, res) => {
-    console.log(req.query)
+    // console.log(req.query)
     let id = req.query.adminId;
     try {
         const admin = await Admin.findOne({ adminId: id });
@@ -261,19 +160,16 @@ app.get("/adminDetails", async (req, res) => {
             dp: admin.dp,
         };
         res.send(result);
-        console.log(result);
+        // console.log(result);
     } catch (error) {
         console.error('Error finding admin:', error);
     }
 
 })
 
-//student list given a course id and teacherid , returns level wise ,  all
 app.get("/getStudentsUnderTeacher", async (req, res) => {
-
-    console.log(req.query)
+    // console.log(req.query)
     let taughtBy = req.query.adminId
-    // let adminId = parseInt(req.query.adminId)
     let courseId = parseInt(req.query.courseId)
     try {
         let students = await Student.aggregate([
@@ -306,7 +202,7 @@ app.get("/getStudentsUnderTeacher", async (req, res) => {
 })
 
 app.get("/getStudentList", async (req, res) => {
-    console.log(req.query)
+    // console.log(req.query)
     let courseId = parseInt(req.query.courseId);
     let taughtBy = req.query.adminId;
     let batch = parseInt(req.query.batch);
@@ -327,9 +223,8 @@ app.get("/getStudentList", async (req, res) => {
     }
 })
 
-//courses in which student is enrolled , returns full courses details
 app.get("/studentDetails", async (req, res) => {
-    console.log(req.query)
+    // console.log(req.query)
     let id = parseInt(req.query.studentId);
 
     try {
@@ -364,14 +259,14 @@ app.get("/studentDetails", async (req, res) => {
             dp: student.dp
         };
         res.send(result);
-        console.log(result);
+        // console.log(result);
     } catch (error) {
         console.error('Error finding student:', error);
     }
 })
 
 app.get("/sudoTeacherList", async (req, res) => {
-    console.log(req.query)
+    // console.log(req.query)
     try {
         const teachers = await Admin.find({ "courses.courseId": parseInt(req.query.courseId) }).select(`name adminId mobile email`)
         res.send(teachers);
@@ -382,10 +277,10 @@ app.get("/sudoTeacherList", async (req, res) => {
 });
 
 app.get("/superAdminDetails", async (req, res) => {
-    console.log(req.query)
+    // console.log(req.query)
     try {
         let sudo = await SuperAdmin.findOne({ superAdminId: parseInt(req.query.superAdminId) })
-        console.log(sudo)
+        // console.log(sudo)
         res.send(sudo)
     }
     catch (error) {
@@ -393,7 +288,7 @@ app.get("/superAdminDetails", async (req, res) => {
     }
 })
 
-app.get("/allTeachers" , async (req,res) => {
+app.get("/allTeachers", async (req, res) => {
     try {
         const teachers = await Admin.find({}).select(`name adminId mobile email`)
         res.send(teachers);
@@ -403,10 +298,10 @@ app.get("/allTeachers" , async (req,res) => {
     }
 });
 
-app.get("/getQuestion" , async (req , res) => {
-    console.log(req.query)
+app.get("/getQuestion", async (req, res) => {
+    // console.log(req.query)
     try {
-        let question = await Page.findOne({courseId : parseInt(req.query.courseId) , level : parseInt(req.query.level) , pageNumber : parseInt(req.query.pageNumber)})
+        let question = await Page.findOne({ courseId: parseInt(req.query.courseId), level: parseInt(req.query.level), pageNumber: parseInt(req.query.pageNumber) })
         res.send(question.content)
     }
     catch (error) {
@@ -414,14 +309,14 @@ app.get("/getQuestion" , async (req , res) => {
     }
 })
 
-app.get("/getTemplateType" , async (req , res) => {
-    console.log(req.query)
+app.get("/getTemplateType", async (req, res) => {
+    // console.log(req.query)
     try {
-        let question = await Page.findOne({courseId : parseInt(req.query.courseId) , level : parseInt(req.query.level) , pageNumber : parseInt(req.query.pageNumber)})
-        if(question){
-            res.send({templateType : question.templateType})
+        let question = await Page.findOne({ courseId: parseInt(req.query.courseId), level: parseInt(req.query.level), pageNumber: parseInt(req.query.pageNumber) })
+        if (question) {
+            res.send({ templateType: question.templateType })
         }
-        else{
+        else {
             res.send("resource not found")
         }
     }
@@ -430,72 +325,42 @@ app.get("/getTemplateType" , async (req , res) => {
     }
 })
 
-app.get("/getStudentLevel" , async (req , res)=>{
-    console.log(req.query)
-        try{
-            const student = await Student.findOne({ studentId : parseInt(req.query.studentId)});
-            
-            if (!student) {
-                throw new Error('Student not found');
-            }
-    
-            const course = student.courses.find(course => course.courseId === parseInt(req.query.courseId));
-    
-            if (!course) {
-                res.send("not found")
-            }
-            else{
-                res.send({
-                    level:course.level
-                })
-            }
+app.get("/getStudentLevel", async (req, res) => {
+    // console.log(req.query)
+    try {
+        const student = await Student.findOne({ studentId: parseInt(req.query.studentId) });
+
+        if (!student) {
+            throw new Error('Student not found');
         }
-        catch(error){
-            console.log(error)
+
+        const course = student.courses.find(course => course.courseId === parseInt(req.query.courseId));
+
+        if (!course) {
+            res.send("not found")
         }
+        else {
+            res.send({
+                level: course.level
+            })
+        }
+    }
+    catch (error) {
+        console.log(error)
+    }
 })
 
-// app.get("/getTemplateTypeWithoutLevel" , async (req,res)=>{
-//     console.log(req.query)
-//     try{
-//         const student = await Student.findOne({ studentId : parseInt(req.query.studentId)});
-        
-//         if (!student) {
-//             throw new Error('Student not found');
-//         }
-
-//         const course = student.courses.find(course => course.courseId === parseInt(req.query.courseId));
-
-        
-
-//         if (!course) {
-//             throw new Error('Course not found for this student');
-//         }
-
-//         let question = await Page.findOne({courseId : parseInt(req.query.courseId) , level : course.level , pageNumber : parseInt(req.query.pageNumber)})
-//         if(question){
-//             res.send({templateType : question.templateType})
-//         }
-//         else{
-//             res.send("resource not found")
-//         }
-//     }
-//     catch(error){
-//         console.log(error)
-//     }
-// })
-
-app.get("/getProgressStudent" , async (req , res) => {
-    console.log(req.query)
+app.get("/getProgressStudent", async (req, res) => {
+    // console.log(req.query)
     try {
-        let progress = await Submission.findOne({studentId : parseInt(req.query.studentId) , courseId : parseInt(req.query.courseId) , pageNumber : parseInt(req.query.pageNumber) , level : parseInt(req.query.level) })
-        if(progress){
+        let progress = await Submission.findOne({ studentId: parseInt(req.query.studentId), courseId: parseInt(req.query.courseId), pageNumber: parseInt(req.query.pageNumber), level: parseInt(req.query.level) })
+        if (progress) {
             res.send({
                 state: progress.state,
                 submission: progress.submission
             })
         }
-        else{
+        else {
             res.send("not found")
         }
     }
@@ -504,10 +369,10 @@ app.get("/getProgressStudent" , async (req , res) => {
     }
 })
 
-app.get("/getSubmissions" , async (req , res) => {
-    console.log(req.query)
+app.get("/getSubmissions", async (req, res) => {
+    // console.log(req.query)
     try {
-        let submissions = await Submission.find({courseId : parseInt(req.query.courseId) , studentId : parseInt(req.query.studentId) , state : 1})
+        let submissions = await Submission.find({ courseId: parseInt(req.query.courseId), studentId: parseInt(req.query.studentId), state: 1 })
         let pageNumbers = submissions.map(submission => submission.pageNumber);
         res.send(pageNumbers)
     }
@@ -516,29 +381,63 @@ app.get("/getSubmissions" , async (req , res) => {
     }
 })
 
-app.post("/teacherSubmit" , async (req , res) => {
-    console.log(req.query)
-    try{
-        if(!req.query.wrongs ){
-            await Submission.updateOne({studentId : parseInt(req.query.studentId) , courseId : parseInt(req.query.courseId) , pageNumber : parseInt(req.query.pageNumber) , level : parseInt(req.query.level) } , { $set : {state : 2 , "submission.wrong" : []}})
+app.post("/newEvent", async (req, res) => {
+    console.log(req.body)
+    try {
+        if (!req.body.image || req.body.image === "") {
+            let obj = new Event({
+                name: req.body.name,
+                about: req.body.about,
+                date: new Date(req.body.date),
+                venue: req.body.venue,
+                image:""
+            })
+            await obj.save()
+            res.send("done")
+        }
+        else {
+            const result = await cloudinary.uploader.upload(req.body.image, options);
+            if (result && result.url) {
+                let obj = new Event({
+                    name: req.body.name,
+                    about: req.body.about,
+                    date: new Date(req.body.date),
+                    image: result.url,
+                    venue: req.body.venue
+                })
+                await obj.save()
+                res.send("done")
+            }
+        }
 
-            res.send("done")
-        }
-        else{
-            await Submission.updateOne({studentId : parseInt(req.query.studentId) , courseId : parseInt(req.query.courseId) , pageNumber : parseInt(req.query.pageNumber) , level : parseInt(req.query.level) } , { $set : {state : 0 , "submission.wrong" : req.query.wrongs}})
-            res.send("done")
-        }
     }
-    catch(error){
+    catch (error) {
         console.log(error)
     }
 })
 
-app.post("/studentSubmit" , async (req , res) => {
-    console.log(req.query)
+app.post("/teacherSubmit", async (req, res) => {
+    // console.log(req.query)
     try {
-        let submission = await Submission.findOne({studentId : parseInt(req.query.studentId) , courseId : parseInt(req.query.courseId) , pageNumber : parseInt(req.query.pageNumber) , level : parseInt(req.query.level) })
-        if(submission){
+        if (!req.query.wrongs) {
+            await Submission.updateOne({ studentId: parseInt(req.query.studentId), courseId: parseInt(req.query.courseId), pageNumber: parseInt(req.query.pageNumber), level: parseInt(req.query.level) }, { $set: { state: 2, "submission.wrong": [] } })
+            res.send("done")
+        }
+        else {
+            await Submission.updateOne({ studentId: parseInt(req.query.studentId), courseId: parseInt(req.query.courseId), pageNumber: parseInt(req.query.pageNumber), level: parseInt(req.query.level) }, { $set: { state: 0, "submission.wrong": req.query.wrongs } })
+            res.send("done")
+        }
+    }
+    catch (error) {
+        console.log(error)
+    }
+})
+
+app.post("/studentSubmit", async (req, res) => {
+    // console.log(req.query)
+    try {
+        let submission = await Submission.findOne({ studentId: parseInt(req.query.studentId), courseId: parseInt(req.query.courseId), pageNumber: parseInt(req.query.pageNumber), level: parseInt(req.query.level) })
+        if (submission) {
             await Submission.updateOne({
                 studentId: parseInt(req.query.studentId),
                 courseId: parseInt(req.query.courseId),
@@ -550,39 +449,34 @@ app.post("/studentSubmit" , async (req , res) => {
                 }
             });
 
-                    // Overwrite values in tables from buffer
-        if (submission.submission.buffer.Btable1.length > 0) {
-            submission.submission.buffer.Btable1.forEach((value, index) => {
-                if (value !== null) {
-                    submission.submission.table1[index] = value;
-                }
-            });
-            submission.submission.buffer.Btable1 = [];
-        }
-        if (submission.submission.buffer.Btable2.length > 0) {
-            submission.submission.buffer.Btable2.forEach((value, index) => {
-                if (value !== null) {
-                    submission.submission.table2[index] = value;
-                }
-            });
-            submission.submission.buffer.Btable2 = [];
-        }
-        if (submission.submission.buffer.Btable3.length > 0) {
-            submission.submission.buffer.Btable3.forEach((value, index) => {
-                if (value !== null) {
-                    submission.submission.table3[index] = value;
-                }
-            });
-            submission.submission.buffer.Btable3 = [];
-        }
-
-        // Save the updated submission back to the database
-        await submission.save();
-
-
+            if (submission.submission.buffer.Btable1.length > 0) {
+                submission.submission.buffer.Btable1.forEach((value, index) => {
+                    if (value !== null) {
+                        submission.submission.table1[index] = value;
+                    }
+                });
+                submission.submission.buffer.Btable1 = [];
+            }
+            if (submission.submission.buffer.Btable2.length > 0) {
+                submission.submission.buffer.Btable2.forEach((value, index) => {
+                    if (value !== null) {
+                        submission.submission.table2[index] = value;
+                    }
+                });
+                submission.submission.buffer.Btable2 = [];
+            }
+            if (submission.submission.buffer.Btable3.length > 0) {
+                submission.submission.buffer.Btable3.forEach((value, index) => {
+                    if (value !== null) {
+                        submission.submission.table3[index] = value;
+                    }
+                });
+                submission.submission.buffer.Btable3 = [];
+            }
+            await submission.save();
             res.send("done")
         }
-        else{
+        else {
             res.send("not found")
         }
     }
@@ -592,12 +486,12 @@ app.post("/studentSubmit" , async (req , res) => {
 })
 
 
-app.post("/updateProgress" , async (req , res) => {
-    console.log(req.query)
+app.post("/updateProgress", async (req, res) => {
+    // console.log(req.query)
     try {
-        let sub = await Submission.findOne({studentId : parseInt(req.query.studentId) , courseId : parseInt(req.query.courseId) , pageNumber : parseInt(req.query.pageNumber) , level : parseInt(req.query.level) })
-        if(sub){
-            if(sub.submission.wrong.length == 0){
+        let sub = await Submission.findOne({ studentId: parseInt(req.query.studentId), courseId: parseInt(req.query.courseId), pageNumber: parseInt(req.query.pageNumber), level: parseInt(req.query.level) })
+        if (sub) {
+            if (sub.submission.wrong.length == 0) {
                 await Submission.updateOne({
                     studentId: parseInt(req.query.studentId),
                     courseId: parseInt(req.query.courseId),
@@ -613,7 +507,7 @@ app.post("/updateProgress" , async (req , res) => {
                 });
                 res.send("done")
             }
-            else{
+            else {
                 await Submission.updateOne({
                     studentId: parseInt(req.query.studentId),
                     courseId: parseInt(req.query.courseId),
@@ -628,20 +522,19 @@ app.post("/updateProgress" , async (req , res) => {
                 });
                 res.send("done")
             }
-
         }
-        else{
+        else {
             let obj = new Submission({
-                studentId : parseInt(req.query.studentId),
-                courseId : parseInt(req.query.courseId),
-                level : parseInt(req.query.level),
-                pageNumber : parseInt(req.query.pageNumber),
-                state :0,
-                submission : {
-                    table1 : req.query.submission.table1,
-                    table2 : req.query.submission.table2,
-                    table3 : req.query.submission.table3,
-                    wrong : []
+                studentId: parseInt(req.query.studentId),
+                courseId: parseInt(req.query.courseId),
+                level: parseInt(req.query.level),
+                pageNumber: parseInt(req.query.pageNumber),
+                state: 0,
+                submission: {
+                    table1: req.query.submission.table1,
+                    table2: req.query.submission.table2,
+                    table3: req.query.submission.table3,
+                    wrong: []
                 }
             })
             await obj.save()
@@ -653,21 +546,20 @@ app.post("/updateProgress" , async (req , res) => {
     }
 })
 
-app.post("/newQuestion" , async (req , res)=>{
-    console.log(req.query)
+app.post("/newQuestion", async (req, res) => {
+    // console.log(req.query)
     try {
-
-        let page = await Page.findOne({courseId : parseInt(req.query.courseId) , level : parseInt(req.query.level) , pageNumber : parseInt(req.query.pageNumber)})
-        if(page){
+        let page = await Page.findOne({ courseId: parseInt(req.query.courseId), level: parseInt(req.query.level), pageNumber: parseInt(req.query.pageNumber) })
+        if (page) {
             res.send("Question already exists")
         }
-        else{
+        else {
             let obj = new Page({
-                courseId : parseInt(req.query.courseId),
-                level : parseInt(req.query.level),
-                templateType : parseInt(req.query.templateType),
-                pageNumber : parseInt(req.query.pageNumber),
-                content : req.query.content
+                courseId: parseInt(req.query.courseId),
+                level: parseInt(req.query.level),
+                templateType: parseInt(req.query.templateType),
+                pageNumber: parseInt(req.query.pageNumber),
+                content: req.query.content
             })
             await obj.save()
             res.send("Question added")
@@ -685,7 +577,6 @@ app.post('/upload', async (req, res) => {
     // console.log(req.body)
     imagePath = req.body.image;
     try {
-        // Upload the image
         const result = await cloudinary.uploader.upload(imagePath, options);
         // console.log(result);
         if (result.url) {
@@ -697,8 +588,6 @@ app.post('/upload', async (req, res) => {
         else {
             res.send("Failed to upload")
         }
-        // res.send(result);
-        // return result.public_id;
     } catch (error) {
         console.error(error);
     }
@@ -706,7 +595,7 @@ app.post('/upload', async (req, res) => {
 
 
 app.post("/newStudent", async (req, res) => {
-    console.log(req.query)
+    // console.log(req.query)
     try {
         let obj = new Student({
             name: req.query.name,
@@ -745,8 +634,6 @@ app.post("/addStudent", async (req, res) => {
         const studentId = parseInt(req.query.studentId);
         const adminId = req.query.adminId;
         const courseId = parseInt(req.query.courseId);
-
-        // Check if the student is already enrolled in the course
         const isEnrolled = await Student.exists({ studentId: studentId, 'courses.courseId': courseId });
 
         if (isEnrolled) {
@@ -755,7 +642,6 @@ app.post("/addStudent", async (req, res) => {
             return;
         }
 
-        // If the student is not enrolled, add them to the course
         await Student.updateOne(
             { studentId: studentId },
             { $push: { courses: { courseId: courseId, level: 1, taughtBy: adminId, batch: 1 } } }
@@ -776,7 +662,7 @@ app.post("/addStudent", async (req, res) => {
 });
 
 app.post("/newTeacher", async (req, res) => {
-    console.log(req.query)
+    // console.log(req.query)
     let courses = []
     req.query.course.forEach(course => {
         courses.push({
@@ -808,7 +694,7 @@ app.post("/newTeacher", async (req, res) => {
 })
 
 app.post("/changeBatch", async (req, res) => {
-    console.log(req.query)
+    // console.log(req.query)
     let studentId = parseInt(req.query.studentId)
     let courseId = parseInt(req.query.courseId)
     let batch = parseInt(req.query.batch)
@@ -826,7 +712,7 @@ app.post("/changeBatch", async (req, res) => {
 })
 
 app.post("/changeTeacher", async (req, res) => {
-    console.log(req.query)
+    // console.log(req.query)
     try {
         let oldAdminId = (req.query.oldAdminId)
         let newAdminId = (req.query.newAdminId)
@@ -854,7 +740,7 @@ app.post("/changeTeacher", async (req, res) => {
 });
 
 app.post("/removeStudentFromCourse", async (req, res) => {
-    console.log(req.query)
+    // console.log(req.query)
     let studentId = parseInt(req.query.studentId)
     let courseId = parseInt(req.query.courseId)
     try {
@@ -887,7 +773,7 @@ app.post("/removeStudentFromCourse", async (req, res) => {
 });
 
 app.post("/removeStudentFromAllCourses", async (req, res) => {
-    console.log(req.query)
+    // console.log(req.query)
     let studentId = parseInt(req.query.studentId)
     try {
         await Admin.updateMany(
@@ -911,28 +797,9 @@ app.post("/removeStudentFromAllCourses", async (req, res) => {
 });
 
 app.post("/removeTeacherFromCourse", async (req, res) => {
-    console.log(req.query)
+    // console.log(req.query)
     let adminId = (req.query.adminId)
     let courseId = parseInt(req.query.courseId)
-    // try {
-    //     let resp = await Admin.findOneAndUpdate(
-    //         { 'adminId': adminId, 'courses.courseId': courseId, 'courses.studentList': { $exists: true, $eq: [] } },
-    //         { $pull: { 'courses': { 'courseId': courseId } } }
-    //     );
-    //     console.log(resp)
-    //     if (resp) {
-    //         await Course.updateOne(
-    //             { courseId: courseId },
-    //             { $pull: { teachers: adminId } }
-    //         );
-    //         res.send("success");
-    //     }
-    //     else {
-    //         res.send("Admin has students in the course")
-    //     }
-    //     // console.log("Teacher removed");
-    //     // res.send("success");
-    // }
     try {
         let admin = await Admin.findOneAndUpdate(
             { 'adminId': adminId },
@@ -940,9 +807,8 @@ app.post("/removeTeacherFromCourse", async (req, res) => {
         );
         console.log(admin)
         if (admin) {
-            // Check if the admin still has students in any of their courses
             const hasStudents = admin.courses.some(course => course.studentList.length > 0);
-    
+
             if (hasStudents) {
                 res.send("Admin has students, cannot remove from course.");
             } else {
@@ -962,7 +828,7 @@ app.post("/removeTeacherFromCourse", async (req, res) => {
 })
 
 app.post("/removeTeacherFromAllCourses", async (req, res) => {
-    console.log(req.query)
+    // console.log(req.query)
     let adminId = (req.query.adminId)
     try {
         let admin = await Admin.findOne({ adminId: adminId });
@@ -998,11 +864,11 @@ app.post("/removeTeacherFromAllCourses", async (req, res) => {
 });
 
 app.post("/uploadDP", async (req, res) => {
-    console.log(req.body)
+    // console.log(req.body)
     let id = (req.body.id)
     try {
         const result = await cloudinary.uploader.upload(req.body.image, options);
-        console.log(result);
+        // console.log(result);
         if (result && result.url && req.body.role === "admin") {
             let superAdmin = await SuperAdmin.findOne({ superAdminId: parseInt(id) });
             let url = superAdmin.dp;
@@ -1010,7 +876,7 @@ app.post("/uploadDP", async (req, res) => {
                 let publicId = url.split("/")[7].split(".")[0];
                 // Use await with cloudinary.uploader.destroy
                 const destroyResult = await cloudinary.uploader.destroy(publicId);
-                console.log(destroyResult);
+                // console.log(destroyResult);
             }
             await SuperAdmin.findOneAndUpdate({ superAdminId: parseInt(id) }, { dp: result.url });
             res.send("Resource added");
@@ -1022,7 +888,7 @@ app.post("/uploadDP", async (req, res) => {
                 let publicId = url.split("/")[7].split(".")[0];
                 // Use await with cloudinary.uploader.destroy
                 const destroyResult = await cloudinary.uploader.destroy(publicId);
-                console.log(destroyResult);
+                // console.log(destroyResult);
             }
             await Admin.findOneAndUpdate({ adminId: id }, { dp: result.url });
             res.send("Resource added");
@@ -1035,7 +901,7 @@ app.post("/uploadDP", async (req, res) => {
                 let publicId = url.split("/")[7].split(".")[0];
                 // Use await with cloudinary.uploader.destroy
                 const destroyResult = await cloudinary.uploader.destroy(publicId);
-                console.log(destroyResult);
+                // console.log(destroyResult);
             }
             await Student.findOneAndUpdate({ studentId: parseInt(id) }, { dp: result.url });
             res.send("Resource added");
@@ -1050,8 +916,7 @@ app.post("/uploadDP", async (req, res) => {
 });
 
 app.post("/updateClassLink", async (req, res) => {
-    console.log(req.query)
-
+    // console.log(req.query)
     let courseId = parseInt(req.query.courseId)
     let batch = parseInt(req.query.batch)
     let adminId = (req.query.adminId)
@@ -1070,9 +935,5 @@ app.post("/updateClassLink", async (req, res) => {
     }
 });
 
-const PORT=process.env.PORT||5000
+const PORT = process.env.PORT || 5000
 app.listen(PORT)
-
-// app.listen(5000, () => {
-//     console.log('Server is running on port 5000');
-// });

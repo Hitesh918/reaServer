@@ -11,8 +11,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@google-apps/meet": "^0.2.0",
-    "@google-cloud/local-auth": "^2.1.0",
     "cloudinary": "^2.1.0",
     "cors": "^2.8.5",
     "express": "^4.19.2",
