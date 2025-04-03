@@ -595,7 +595,7 @@ app.post('/upload', async (req, res) => {
 
 
 app.post("/newStudent", async (req, res) => {
-    // console.log(req.query)
+    console.log(req.query)
     try {
         let obj = new Student({
             name: req.query.name,
@@ -630,6 +630,7 @@ app.post("/newStudent", async (req, res) => {
 })
 
 app.post("/addStudent", async (req, res) => {
+    console.log(req.query)
     try {
         const studentId = parseInt(req.query.studentId);
         const adminId = req.query.adminId;
@@ -662,20 +663,21 @@ app.post("/addStudent", async (req, res) => {
 });
 
 app.post("/newTeacher", async (req, res) => {
-    // console.log(req.query)
+    console.log(req.query)
     let courses = []
-    req.query.course.forEach(course => {
+    req.query.course && req.query.course.forEach(course => {
         courses.push({
             courseId: parseInt(course),
             studentList: [],
             numberOfBatches: 1
         })
     });
+    console.log(courses)
     try {
         let obj = new Admin({
             name: req.query.name,
             email: req.query.email,
-            adminId: req.query.id,
+            adminId: req.query.id.toLowerCase(),
             mobile: parseInt(req.query.mobile),
             courses: courses,
             profile: req.query.info

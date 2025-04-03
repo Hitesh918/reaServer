@@ -61,8 +61,6 @@ const Course = mongoose.model("course", courseSchema);
 let adminSchema = new mongoose.Schema({
     email: {
         type: String,
-        required: true,
-        unique: true,
     },
     profile:
     {
@@ -75,6 +73,7 @@ let adminSchema = new mongoose.Schema({
     adminId: {
         type: String,
         required: true,
+        unique:true
     },
     dp:{
         type : String,
@@ -91,8 +90,6 @@ let adminSchema = new mongoose.Schema({
     }],
     mobile: {
         type: Number,
-        required: true,
-        unique : true
     },
 });
 // adminSchema.pre('save', async function(next) {
@@ -127,8 +124,6 @@ let studentSchema = new mongoose.Schema({
     },
     mobile: {
         type: Number,
-        required: true,
-        unique : true
     },
     dp:
     {
