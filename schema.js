@@ -91,6 +91,10 @@ let adminSchema = new mongoose.Schema({
     mobile: {
         type: Number,
     },
+    classLink:{
+        type : String,
+        default : "http://www.google.com/"
+    }
 });
 // adminSchema.pre('save', async function(next) {
 //     if (!this.adminId) {

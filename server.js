@@ -290,7 +290,7 @@ app.get("/superAdminDetails", async (req, res) => {
 
 app.get("/allTeachers", async (req, res) => {
     try {
-        const teachers = await Admin.find({}).select(`name adminId mobile email`)
+        const teachers = await Admin.find({}).select(`name adminId mobile email classLink`)
         res.send(teachers);
     }
     catch (error) {
@@ -928,6 +928,10 @@ app.post("/updateClassLink", async (req, res) => {
         await Student.updateMany(
             { "courses.courseId": courseId, "courses.batch": batch, "courses.taughtBy": adminId },
             { $set: { "courses.$.classLink": classLink } }
+        )
+        await Admin.updateOne(
+            {"adminId" : adminId},
+            { $set : { "classLink" : classLink} }
         )
         res.send("Link updated")
         console.log("Link updated")
